@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.ckpt
+*.log
+*.jsonl
+*.traj
+*.extxyz
+benchmark_results.json
+benchmark_structures/
+finetune_out/
+profiling_output/
