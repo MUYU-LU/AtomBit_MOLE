@@ -669,7 +669,13 @@ class HTGP_Calculator(Calculator):
         # Fine-tuned model: use the e0 fitted during data conversion
         e0_fit = getattr(self, "e0_fit", None)
         if e0_fit:
-            return sum(e0_fit.get(int(z), 0.0) for z in atoms.get_atomic_numbers())
+            missing_z = sorted({int(z) for z in atoms.get_atomic_numbers() if int(z) not in e0_fit})
+            if missing_z:
+                raise ValueError(
+                    f"Fitted E0 baseline does not contain atomic number(s) {missing_z}. "
+                    "Refusing to return energy with an incomplete E0 baseline."
+                )
+            return sum(float(e0_fit[int(z)]) for z in atoms.get_atomic_numbers())
 
         if not self.add_e0_baseline:
             return 0.0
@@ -683,11 +689,12 @@ class HTGP_Calculator(Calculator):
                 dataset = str(dataset)
 
         if not dataset:
-            return 0.0
+            raise ValueError(
+                "E0 baseline is enabled but no dataset/head name is set. "
+                "Set dataset_name/atoms.info['dataset'] or disable E0 explicitly."
+            )
 
         e0_dict = self._load_e0_dict(dataset)
-        if not e0_dict:
-            return 0.0
 
         baseline = 0.0
         missing_z = set()
@@ -699,14 +706,10 @@ class HTGP_Calculator(Calculator):
                 missing_z.add(z_int)
 
         if missing_z:
-            warn_key = (dataset, tuple(sorted(missing_z)))
-            if warn_key not in self._missing_e0_warned:
-                warnings.warn(
-                    f"E0 baseline for dataset {dataset!r} does not contain atomic number(s) "
-                    f"{sorted(missing_z)}; those atoms were skipped.",
-                    UserWarning,
-                )
-                self._missing_e0_warned.add(warn_key)
+            raise ValueError(
+                f"E0 baseline for dataset {dataset!r} does not contain atomic number(s) "
+                f"{sorted(missing_z)}. Refusing to return energy with an incomplete E0 baseline."
+            )
 
         return baseline
 
@@ -716,15 +719,10 @@ class HTGP_Calculator(Calculator):
 
         pt_path = self._resolve_e0_path(dataset)
         if not os.path.exists(pt_path):
-            if dataset not in self._missing_e0_warned:
-                warnings.warn(
-                    f"E0 baseline file not found for dataset {dataset!r}: {pt_path}. "
-                    "Energy will be returned without the dataset baseline.",
-                    UserWarning,
-                )
-                self._missing_e0_warned.add(dataset)
-            self._e0_cache[dataset] = None
-            return None
+            raise FileNotFoundError(
+                f"E0 baseline file not found for dataset {dataset!r}: {pt_path}. "
+                "Disable E0 explicitly if raw model energy is intended."
+            )
 
         with open(pt_path, "rb") as f:
             payload = pickle.load(f)

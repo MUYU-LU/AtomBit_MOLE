@@ -27,6 +27,7 @@ in `src`.
 - Training and inference both import the same package path: `src`.
 - Bare ASE structures default to neutral `charge=0`, `spin=0`; neutral charge maps to embedding index `0 - min_charge`, not row `0`.
 - Inference dataset/head, charge, spin, periodic shifts, and E0 lookup are handled by `HTGP_Calculator`; scripts are only thin wrappers.
+- E0 is strict by default: if E0 is enabled, the selected dataset/head must have an E0 file and every element in the structure must be present in it. Use `--no-e0` or `add_e0_baseline=False` only when raw model energy is explicitly intended.
 
 ## Training
 
@@ -86,6 +87,11 @@ The work directory must contain `structures/*.cif`. The script passes
 `--dataset-name` into `HTGP_Calculator`; the calculator assigns neutral
 `charge=0`, `spin=0` unless `atoms.info` overrides them, and defaults to this
 package's `src` and `e0/` directories.
+
+E0 is not silently skipped. For example, OMC E0 currently covers organic
+elements and does not include Cu; periodic Cu with `--dataset-name OMC` and E0
+enabled will raise an error instead of returning an uncorrected OMC energy. Use
+an element-complete E0 source or explicitly disable E0 for raw-head diagnostics.
 
 Generic ASE benchmark, single point, optimization, and MD:
 
