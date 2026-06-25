@@ -400,6 +400,10 @@ class HTGP_Calculator(Calculator):
         if spin is not None:
             self.default_spin = float(spin)
         self.unfuse_experts()
+        # ASE caches results based on geometry, not model context. Changing the
+        # dataset/head or charge/spin must force a fresh calculation even when
+        # atom positions and cell are unchanged.
+        self.reset()
         return self
 
     # ------------------------------------------------------------------
